@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class ZombieController : MonoBehaviour {
+	public AudioClip enemyContactSound;
+	public AudioClip catContactSound;
 
 	public float moveSpeed;
 	public float turnSpeed;
@@ -12,10 +15,12 @@ public class ZombieController : MonoBehaviour {
 
 	private Vector3 moveDirection = Vector3.right;
 
-	// Use this for initialization
-	void Start () {
-	
-	}
+	private List<Transform> congaLine = new List<Transform>();
+
+	private bool isInvincible = false;
+	private float timeSpentInvincible;
+
+	private int lives = 3;
 	
 	// Update is called once per frame
 	void Update () {
@@ -35,6 +40,21 @@ public class ZombieController : MonoBehaviour {
 			                 Quaternion.Euler( 0, 0, targetAngle ), 
 			                 turnSpeed * Time.deltaTime );
 		EnforceBounds ();
+
+		if (isInvincible)
+		{
+
+			timeSpentInvincible += Time.deltaTime;
+
+			if (timeSpentInvincible < 3f) {
+				float remainder = timeSpentInvincible % .3f;
+				GetComponent<Renderer>().enabled = remainder > .15f; 
+			}
+			else {
+				GetComponent<Renderer>().enabled = true;
+				isInvincible = false;
+			}
+		}
 	}
 
 	public void SetColliderForSprite( int spriteNum )
@@ -46,7 +66,37 @@ public class ZombieController : MonoBehaviour {
 
 	void OnTriggerEnter2D( Collider2D other )
 	{
-		Debug.Log ("Hit " + other.gameObject);
+		if(other.CompareTag("cat")) {
+
+			GetComponent<AudioSource>().PlayOneShot(catContactSound);
+
+			Transform followTarget = congaLine.Count == 0 ? transform : congaLine[congaLine.Count-1];
+			other.transform.parent.GetComponent<CatController>().JoinConga( followTarget, moveSpeed, turnSpeed );
+			congaLine.Add( other.transform );
+
+			if (congaLine.Count >= 5) {
+				Application.LoadLevel("win_scene");
+			}
+		}
+		else if(!isInvincible && other.CompareTag("enemy")) {
+
+			GetComponent<AudioSource>().PlayOneShot(enemyContactSound);
+
+			isInvincible = true;
+			timeSpentInvincible = 0;
+
+			for( int i = 0; i < 2 && congaLine.Count > 0; i++ )
+			{
+				int lastIdx = congaLine.Count-1;
+				Transform cat = congaLine[ lastIdx ];
+				congaLine.RemoveAt(lastIdx);
+				cat.parent.GetComponent<CatController>().ExitConga();
+			}
+
+			if (--lives <= 0) {
+				Application.LoadLevel("lose_scene");
+			}
+		}
 	}
 
 	private void EnforceBounds()

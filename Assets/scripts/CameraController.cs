@@ -8,7 +8,7 @@ public class CameraController : MonoBehaviour {
 
 	// Use this for initialization
 	void Start () {
-	
+		newPosition = transform.position;
 	}
 	
 	// Update is called once per frame
